@@ -69,3 +69,4 @@ assume a customer is using it.
 | [`gateway`](https://github.com/Metrion-io/gateway) | Issues the API keys it authenticates with |
 | [`platform`](https://github.com/Metrion-io/platform) | Where the resulting traces are displayed |
 | [`ops`](https://github.com/Metrion-io/ops) | Internal admin |
+| [`clickhouse`](https://github.com/Metrion-io/clickhouse) | Where those events come to rest |
