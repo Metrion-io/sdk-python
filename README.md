@@ -4,9 +4,9 @@ The reference SDK for [Metrion](https://github.com/Metrion-io) — an AI & data
 engineering platform. It instruments an application so its LLM calls show up as
 traces, and is the first of the planned SDKs (Python, then TypeScript, Go, Rust).
 
-> **Status: empty repo.** Nothing here is implemented. This README is the
-> design contract the implementation is expected to meet — it describes intent,
-> not behaviour you can rely on today.
+> **Status: alpha.** The transport, the manual API and the OpenAI drop-in are
+> implemented and verified against the live deployment. Not yet published to
+> PyPI, and `pricing.py` (best-effort cost) is still to come.
 
 ## The rule this SDK exists to honour
 
@@ -43,8 +43,19 @@ response = client.chat.completions.create(
 ```
 
 ```env
-METRION_API_KEY=mt_...
-METRION_BASE_URL=https://telemetry.metrion.io
+METRION_API_KEY=mt_live_...
+METRION_BASE_URL=https://ingest-metrion.syncloud.my.id
+```
+
+Server-side, one key. The `mt_pk_` / `mt_sk_` split in the plan is deliberately
+deferred: a public key with no rate limit or origin control is a way to have
+someone else's traffic billed to a customer's project.
+
+## Verify it yourself
+
+```bash
+python3 tests/run_all.py                       # 30 tests, no network
+METRION_API_KEY=mt_live_... python3 quickstart.py
 ```
 
 ## What the SDK owns
