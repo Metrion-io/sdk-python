@@ -189,6 +189,55 @@ prints during an outage becomes the noisiest thing in the customer's logs.
 
 ---
 
+## The backend is ready — verify it yourself first
+
+```bash
+METRION_API_KEY=mt_live_... python3 verify_backend.py
+```
+
+12 checks against the live deployment: the nested trace/span/generation shape,
+a 500-event batch, a 200KB payload, the 1000-event cap, auth rejection, and a
+read-back that confirms usage and nesting survived. All passing as of this
+commit.
+
+**Base URL:** `https://ingest-metrion.syncloud.my.id`
+
+| Endpoint | Use |
+|---|---|
+| `POST /v1/events` | one event |
+| `POST /v1/events/batch` | up to 1000 |
+| `GET /v1/traces` | list, for verifying delivery |
+| `GET /v1/traces/{id}` | one trace with every span |
+
+Measured, not assumed: a 500-event batch round-trips in **~250 ms**, and
+payloads up to 200KB are accepted.
+
+### ⚠ Set a User-Agent, or Cloudflare answers 403
+
+The host sits behind Cloudflare, which rejects requests with **no** User-Agent
+header — `error code: 1010`, a plain 403 with no JSON body. Python's `urllib`
+sends none by default, so the first thing that hits this is a hand-rolled
+transport during development.
+
+`httpx` sets one, so the SDK as planned is unaffected. Set an explicit
+`metrion-python/<version>` anyway: it makes the SDK's traffic identifiable in
+logs, and it means a future WAF rule cannot silently break every customer.
+
+### Status codes the transport must handle
+
+| Code | Meaning | What the SDK does |
+|---|---|---|
+| `202` | stored | drop from the queue |
+| `400` | malformed batch | **do not retry** — it fails identically |
+| `401` | key unknown, revoked, or wrong scope | stop retrying; log once |
+| `413` | over 1000 events | split the batch |
+| `403` | Cloudflare, not the API | check the User-Agent before blaming auth |
+| `503` | write failed downstream | **retry** with backoff |
+
+`503` matters: telemetry answers it rather than a false `202` when the
+ClickHouse write fails, precisely so a buffering SDK retries instead of
+dropping events it was told had landed.
+
 ## Configuration
 
 ```env
