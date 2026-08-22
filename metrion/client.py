@@ -120,6 +120,14 @@ class _Node:
             total = self.usage.get("total_tokens")
             if total is None and prompt is not None and completion is not None:
                 total = prompt + completion
+            cached = self.usage.get("cached_tokens", self.usage.get("cached_prompt_tokens"))
+            # Only when the caller did not say. A caller who knows the real
+            # figure — a gateway that just billed it — is authoritative, and an
+            # estimate must never overwrite a measurement.
+            if self.cost_usd is None and self.model:
+                from .pricing import estimate
+
+                self.cost_usd = estimate(self.model, prompt, completion, cached)
         return Event(
             type=self._type,
             trace_id=self.trace_id,

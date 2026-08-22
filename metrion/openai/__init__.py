@@ -243,6 +243,12 @@ def _usage_dict(usage: Any) -> dict[str, int] | None:
     if usage is None:
         return None
     out = {}
+    # Cached tokens live one level down in OpenAI's shape, and they matter:
+    # they are priced at a fraction of fresh input.
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(details, "cached_tokens", None) if details else None
+    if cached is not None:
+        out["cached_tokens"] = cached
     for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
         value = getattr(usage, key, None)
         if value is not None:

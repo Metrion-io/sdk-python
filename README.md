@@ -51,6 +51,31 @@ Server-side, one key. The `mt_pk_` / `mt_sk_` split in the plan is deliberately
 deferred: a public key with no rate limit or origin control is a way to have
 someone else's traffic billed to a customer's project.
 
+## Install
+
+Not on PyPI. Install from git:
+
+```bash
+pip install "git+https://github.com/Metrion-io/sdk-python.git"
+uv pip install "git+https://github.com/Metrion-io/sdk-python.git"
+```
+
+With the OpenAI drop-in:
+
+```bash
+pip install "metrion[openai] @ git+https://github.com/Metrion-io/sdk-python.git"
+```
+
+Pin a commit for anything that matters — a branch moves under you:
+
+```bash
+pip install "git+https://github.com/Metrion-io/sdk-python.git@<sha>"
+```
+
+The manual API has **no dependencies at all**: the transport is `urllib`, so
+nothing is pulled into the caller's environment. `openai` is an extra, not a
+requirement.
+
 ## Verify it yourself
 
 ```bash
