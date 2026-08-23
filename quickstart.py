@@ -20,6 +20,7 @@ metrion = Metrion()
 print(f"sending to {metrion.base_url}")
 
 with metrion.trace(name="quickstart-agent", user_id="demo-user",
+                   session_id="quickstart-session",
                    metadata={"source": "quickstart"}) as trace:
     with trace.span(name="retrieve-context") as span:
         span.end(output="3 documents")

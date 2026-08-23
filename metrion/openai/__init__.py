@@ -94,6 +94,7 @@ class _StreamProxy:
         self._ttft_ms: int | None = None
         self._text: list[str] = []
         self._usage: dict[str, int] | None = None
+        self._finish_reason: str | None = None
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._inner, name)
@@ -131,16 +132,23 @@ class _StreamProxy:
         if usage is not None:
             self._usage = _usage_dict(usage)
         for choice in getattr(chunk, "choices", None) or []:
+            finish = getattr(choice, "finish_reason", None)
+            if finish:
+                self._finish_reason = finish
             delta = getattr(choice, "delta", None)
             content = getattr(delta, "content", None) if delta else None
             if content:
                 self._text.append(content)
 
     def _finish(self) -> None:
+        extra: dict[str, object] = {}
+        if self._finish_reason:
+            extra["metadata"] = {"finish_reason": self._finish_reason}
         self._generation.end(
             output="".join(self._text) or None,
             usage=self._usage,
             ttft_ms=self._ttft_ms,
+            **extra,
         )
 
 
@@ -256,13 +264,51 @@ def _usage_dict(usage: Any) -> dict[str, int] | None:
     return out or None
 
 
+def _message_payload(message: Any) -> Any:
+    """Keep the assistant turn structured when it is more than a string.
+
+    Tool calls, refusals, and multimodal content live on the message object.
+    Flattening to `.content` alone would drop them.
+    """
+    if message is None:
+        return None
+    dump = getattr(message, "model_dump", None)
+    if callable(dump):
+        data = dump(exclude_none=True)
+        return data or None
+    role = getattr(message, "role", None)
+    content = getattr(message, "content", None)
+    tool_calls = getattr(message, "tool_calls", None)
+    if role or content or tool_calls:
+        payload: dict[str, Any] = {}
+        if role:
+            payload["role"] = role
+        if content is not None:
+            payload["content"] = content
+        if tool_calls:
+            payload["tool_calls"] = tool_calls
+        return payload
+    return content
+
+
 def _from_response(response: Any) -> dict[str, Any]:
     text = None
+    metadata: dict[str, Any] = {}
     choices = getattr(response, "choices", None) or []
     if choices:
-        message = getattr(choices[0], "message", None)
-        text = getattr(message, "content", None) if message else None
-    return {"output": text, "usage": _usage_dict(getattr(response, "usage", None))}
+        choice = choices[0]
+        message = getattr(choice, "message", None)
+        text = _message_payload(message)
+        finish = getattr(choice, "finish_reason", None)
+        if finish:
+            metadata["finish_reason"] = finish
+    extra: dict[str, Any] = {
+        "output": text,
+        "usage": _usage_dict(getattr(response, "usage", None)),
+    }
+    if metadata:
+        extra["metadata"] = metadata
+    return extra
 
 
 __all__ = ["OpenAI", "AsyncOpenAI"]

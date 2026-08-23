@@ -42,6 +42,18 @@ response = client.chat.completions.create(
 )
 ```
 
+Group related calls into a conversation by passing `session_id` (and optionally
+`user_id`) on the trace. Nested generations inherit both; the Sessions page
+only lists traces that actually sent a `session_id`.
+
+```python
+from metrion import Metrion
+
+metrion = Metrion()
+with metrion.trace(name="support", session_id="chat-42", user_id="user-9"):
+    client.chat.completions.create(...)
+```
+
 ```env
 METRION_API_KEY=mt_live_...
 METRION_BASE_URL=https://ingest-metrion.syncloud.my.id

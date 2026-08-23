@@ -52,6 +52,16 @@ def test_a_trace_is_its_own_root():
     assert trace.span_id == trace.trace_id
 
 
+def test_children_inherit_session_and_user():
+    m, t = client()
+    with m.trace(name="agent", session_id="sess_1", user_id="user_9") as trace:
+        with trace.generation(name="answer", model="m", input="q") as gen:
+            gen.end(output="a")
+    generation = next(e for e in t.events if e.type == "generation")
+    assert generation.session_id == "sess_1"
+    assert generation.user_id == "user_9"
+
+
 def test_an_exception_marks_the_span_and_still_propagates():
     # Swallowing the caller's exception would be far worse than losing a span.
     m, t = client()

@@ -14,7 +14,14 @@ import time
 import traceback
 from typing import Any
 
-from .context import current_span_id, current_trace_id, reset_current, set_current
+from .context import (
+    current_session_id,
+    current_span_id,
+    current_trace_id,
+    current_user_id,
+    reset_current,
+    set_current,
+)
 from .models import STATUS_ERROR, STATUS_OK, Event, new_id
 from .transport import HttpSender, Transport
 
@@ -55,8 +62,10 @@ class _Node:
         self.provider = provider
         self.input = input
         self.metadata = metadata
-        self.user_id = user_id
-        self.session_id = session_id
+        # Inherit from the active trace so a nested generation() does not have
+        # to repeat session_id / user_id. Explicit values still win.
+        self.user_id = user_id or current_user_id()
+        self.session_id = session_id or current_session_id()
         self.status = STATUS_OK
         self.error: str | None = None
         self.output: Any = None
@@ -77,7 +86,12 @@ class _Node:
 
     # -- lifecycle -------------------------------------------------------
     def __enter__(self):
-        self._tokens = set_current(self.trace_id, self.span_id)
+        self._tokens = set_current(
+            self.trace_id,
+            self.span_id,
+            session_id=self.session_id,
+            user_id=self.user_id,
+        )
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -104,6 +118,9 @@ class _Node:
             self.usage = usage
         if cost_usd is not None:
             self.cost_usd = cost_usd
+        extra_metadata = kw.pop("metadata", None)
+        if extra_metadata:
+            self.metadata = {**(self.metadata or {}), **extra_metadata}
         for key, value in kw.items():
             setattr(self, key, value)
         self._client._emit(self._build())
@@ -121,6 +138,8 @@ class _Node:
             if total is None and prompt is not None and completion is not None:
                 total = prompt + completion
             cached = self.usage.get("cached_tokens", self.usage.get("cached_prompt_tokens"))
+            if cached is not None:
+                self.metadata = {**(self.metadata or {}), "cached_tokens": cached}
             # Only when the caller did not say. A caller who knows the real
             # figure — a gateway that just billed it — is authoritative, and an
             # estimate must never overwrite a measurement.

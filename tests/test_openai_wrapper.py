@@ -89,7 +89,8 @@ def test_usage_and_output_are_recorded():
     assert event.model == "gpt-4o"
     assert event.provider == "openai"
     assert (event.prompt_tokens, event.completion_tokens, event.total_tokens) == (100, 20, 120)
-    assert event.output == "hello"
+    assert event.input is not None and "hi" in event.input
+    assert event.output is not None and "hello" in event.output
     assert event.status == "ok"
 
 
