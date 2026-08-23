@@ -1,8 +1,9 @@
 # Metrion Python SDK — Implementation Plan
 
-Plan only. Nothing here is built yet.
+**Status: alpha, implemented.** Transport, manual API, OpenAI drop-in, and
+pricing are built; 43 tests pass offline. Not yet published to PyPI.
 
-The two surfaces below are what the SDK has to deliver, and they are not
+The two surfaces below are what the SDK delivers, and they are not
 alternatives — the drop-in exists so a customer can start in one line, and the
 manual API exists because agents and RAG pipelines are not a single model call.
 
@@ -296,14 +297,14 @@ exists.
 
 ## Order of work
 
-1. `transport.py` + `models.py` — the fail-open queue, tested against a stub
-2. `context.py` + trace/span/generation — the manual API
-3. `metrion.openai` — the drop-in, sync then async, streaming last
-4. `pricing.py` — best-effort cost
-5. Docs and a quickstart that runs against `ingest-metrion.syncloud.my.id`
+All steps below are **implemented** (alpha). PyPI publish and a polished
+quickstart doc are the remaining follow-ups.
 
-Step 1 first because everything else depends on delivery being correct, and
-because it is the part that must behave when the network does not.
+1. ~~`transport.py` + `models.py`~~ — fail-open queue, tested against a stub
+2. ~~`context.py` + trace/span/generation~~ — the manual API
+3. ~~`metrion.openai`~~ — the drop-in, sync then async, streaming
+4. ~~`pricing.py`~~ — best-effort cost
+5. Quickstart against `ingest-metrion.syncloud.my.id` — `verify_backend.py` + `examples/orvix_e2e.py`
 
 ---
 
