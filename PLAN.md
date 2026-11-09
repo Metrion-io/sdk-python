@@ -319,3 +319,62 @@ quickstart doc are the remaining follow-ups.
   same streaming chunks as the unwrapped official SDK. A test that asserts
   equality against the real client, with telemetry disabled, is the honest
   version of that claim.
+
+---
+
+# Next — work packages for parallel workers (2026-11-09)
+
+The alpha above is done. What follows is written for AI workers running in
+parallel worktrees. The contracts this SDK must obey are owned elsewhere:
+**C1/C2/C9/C10/C11** in `telemetry/PLAN.md`, **C3** in `gateway/PLAN.md`.
+Behaviour must stay identical to `sdk-typescript` (same field names, same
+fail-open rules, same status-code handling).
+
+## Worker protocol
+
+1. One WP = one branch `wp/<WP-ID>-<slug>` = one worktree = one PR.
+   `git worktree add ../.worktrees/sdk-python-<WP-ID> -b wp/<WP-ID>-<slug> origin/main`
+2. `Depends on` is hard. 3. Touch only `Owns`; hotspot `metrion/__init__.py`
+   (exports) gets a minimal append, rebased before PR.
+4. Contracts are law. Public API names below are binding — they mirror the
+   TypeScript SDK so docs stay one page.
+5. DoD: offline tests added; verify passes; status cell updated; PR pastes real output.
+6. No network in tests. Never publish, never push to `main`.
+
+**Verify**
+
+```bash
+python -m venv .venv && .venv/bin/pip install -e . -q && .venv/bin/python tests/run_all.py
+```
+
+## Work packages
+
+| ID | Title | Depends on | Owns | Status |
+|---|---|---|---|---|
+| PYS-01 | Contract conformance tests | TEL-01 | `tests/contract/**` (vendored fixtures), `tests/test_contract.py` | todo |
+| PYS-02 | `score()` API (C9) | TEL-02 merged for E2E; code can start now | `metrion/client.py` (`score` method only), `tests/test_score.py` | todo |
+| PYS-03 | `mask` hook | — | `metrion/transport.py` (enqueue path), `tests/test_mask.py` | todo |
+| PYS-04 | Anthropic drop-in | — | `metrion/anthropic/**`, `tests/test_anthropic_wrapper.py` | todo |
+| PYS-05 | PyPI release workflow | **blocked (D4)** | `.github/workflows/release.yml` | blocked (D4) |
+| PYS-06 | C10 metadata on `ToolCall` / `Retrieval` | — | `metrion/client.py` (those two classes), `tests/test_typed_spans.py` | todo |
+
+PYS-02 and PYS-06 both edit `client.py` in disjoint classes; second to merge rebases.
+
+### PYS-01
+Copy `telemetry/contracts/` into `tests/contract/` (record the source commit
+in `tests/contract/SOURCE`). For every valid fixture, building the event via
+the public API and calling `to_payload()` yields the same JSON (key order free).
+### PYS-02
+`metrion.score(trace_id, name, value, *, span_id=None, comment=None, source="sdk")`
+and `trace.score(name, value, comment=None)`. Emits C9. Never raises.
+### PYS-03
+`Metrion(mask=callable)` — called on every event payload before enqueue;
+exception in `mask` → event dropped and counted in `stats()["masked_errors"]`,
+never forwarded unmasked.
+### PYS-04
+`from metrion.anthropic import Anthropic, AsyncAnthropic` — wraps the official
+SDK for `messages.create` incl. streaming; same rules as the OpenAI table above;
+`provider="anthropic"`; usage from `input_tokens`/`output_tokens`.
+### PYS-06
+`trace.tool_call(name, arguments=…)` → `metadata["tool.name"]`, `["tool.arguments"]`;
+`trace.retrieval(query=…, k=…)` + `end(documents=[…])` → C10 keys.
